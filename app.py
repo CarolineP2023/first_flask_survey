@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, redirect, flash
+from flask import Flask, request, render_template, redirect, flash, session
 from flask_debugtoolbar import DebugToolbarExtension
 from surveys import satisfaction_survey as survey
 
@@ -8,7 +8,8 @@ app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
 
 debug = DebugToolbarExtension(app)
 
-responses = []
+RESPONSES_KEY = []
+reponses = []
 
 @app.route('/')
 def home_page():
@@ -17,10 +18,16 @@ def home_page():
     return render_template('home.html', survey=survey)
 
 
+@app.route('/', methods=['POST'])
+def set_session():
+    return redirect("home.html")
 
-@app.route('/start')
+
+@app.route('/start', method = ["POST"])
 def start_survey():
     """used to start the survey redirects to the first question"""
+
+    session[RESPONSES_KEY] = []
     return redirect("/question/0")
 
 
@@ -28,7 +35,7 @@ def start_survey():
 @app.route('/question/<int:ques_id>')
 def questions(ques_id):
     """"displays questions"""
-
+    responses = session.get(RESPONSES_KEY)
     if(len(responses) == len(survey.questions)):
         # if its the end of the survey display thank you
         return redirect("/thanks")
@@ -48,7 +55,12 @@ def questions(ques_id):
 def get_answers():
     """gets users answer"""
     answer = request.form['answer']
-    responses.append(answer)
+    text = request.form.get("text", "")
+
+    responses = session[RESPONSES_KEY]
+    responses.append({"answer": answer, "text": text})
+
+    session[RESPONSES_KEY] = responses
 
     if (len(responses) == len(survey.questions)):
         #if the users has answered the last question takes them to the complete page
@@ -60,4 +72,5 @@ def get_answers():
 @app.route('/thanks')
 def survey_complete():
     """displays survey complete page"""
+    responses = session[RESPONSES_KEY]
     return render_template("complete.html")
